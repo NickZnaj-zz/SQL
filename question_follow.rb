@@ -1,8 +1,11 @@
+require 'byebug'
+
 class QuestionFollow
 
   attr_accessor :question_id, :user_id, :id
 
   def self.followers_for_question_id(question_id)
+    # debugger
     results = QuestionsDatabase.instance.execute(<<-SQL, question_id)
       SELECT
         user_id
@@ -10,13 +13,54 @@ class QuestionFollow
         users
       JOIN
         question_follows
-        ON question_follows.user_id = user.id
+        ON question_follows.user_id = users.id
       WHERE
         question_follows.question_id = (?)
     SQL
 
-    results.map { |result| User.find_by_id(result) }
+    results.map do |result|
+      # debugger
+      User.find_by_id(result.values)
+    end
   end
+
+
+  def self.followed_questions_for_user_id(user_id)
+    results = QuestionsDatabase.instance.execute(<<-SQL, user_id)
+      SELECT
+        question_id
+      FROM
+        questions
+      JOIN
+        question_follows
+        ON question_follows.question_id = questions.id
+      WHERE
+        question_follows.user_id = (?)
+    SQL
+
+    results.map do |result|
+      # debugger
+      Question.find_by_id(result.values)
+    end
+  end
+
+  def self.most_followed_questions(n)
+    results = QuestionsDatabase.instance.execute(<<-SQL, n)
+      SELECT
+        question_id
+      FROM
+        question_follows
+      GROUP BY
+        question_id
+      ORDER BY
+        COUNT(user_id) DESC
+      LIMIT
+        (?)
+    SQL
+
+    results.map { |result| Question.find_by_id(result.values) }
+  end
+
 
   def initialize(options = {})
     @id = options['id']
